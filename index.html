@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FlowState — Focus Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            flow: {
+              50: '#f0f9ff',
+              100: '#e0f2fe',
+              200: '#bae6fd',
+              300: '#7dd3fc',
+              400: '#38bdf8',
+              500: '#0ea5e9',
+              600: '#0284c7',
+              700: '#0369a1',
+              800: '#075985',
+              900: '#0c4a6e',
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+      min-height: 100vh;
+    }
+    .timer-ring {
+      transform: rotate(-90deg);
+    }
+    .timer-ring circle {
+      transition: stroke-dashoffset 1s linear;
+    }
+    .glow {
+      box-shadow: 0 0 60px rgba(14, 165, 233, 0.3);
+    }
+    .card-glass {
+      background: rgba(30, 41, 59, 0.5);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    @keyframes pulse-slow {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+    .pulse-slow {
+      animation: pulse-slow 2s ease-in-out infinite;
+    }
+    @keyframes float {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-10px); }
+    }
+    .float {
+      animation: float 6s ease-in-out infinite;
+    }
+  </style>
+</head>
+<body class="text-slate-200 antialiased">
+  <!-- Ambient Background -->
+  <div class="fixed inset-0 overflow-hidden pointer-events-none">
+    <div class="absolute top-1/4 left-1/4 w-96 h-96 bg-flow-500/10 rounded-full blur-3xl float"></div>
+    <div class="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl float" style="animation-delay: -3s;"></div>
+  </div>
+
+  <div class="relative z-10 min-h-screen p-4 md:p-8">
+    <!-- Header -->
+    <header class="max-w-6xl mx-auto mb-8">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-flow-400 to-flow-600 flex items-center justify-center">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+            </svg>
+          </div>
+          <div>
+            <h1 class="text-xl font-semibold text-white">FlowState</h1>
+            <p class="text-xs text-slate-400">Deep focus, meaningful work</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-4">
+          <div class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-flow-500/20 border border-flow-500/30">
+            <span class="w-2 h-2 rounded-full bg-green-400 pulse-slow"></span>
+            <span class="text-sm text-flow-300 font-medium" id="streakCount">7 day streak</span>
+          </div>
+          <button id="settingsBtn" class="p-2 rounded-lg hover:bg-slate-700/50 transition-colors">
+            <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-6xl mx-auto">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- Timer Section -->
+        <div class="lg:col-span-2">
+          <div class="card-glass rounded-2xl p-6 md:p-8">
+            <!-- Session Type Tabs -->
+            <div class="flex items-center justify-center gap-2 mb-8">
+              <button class="session-tab active px-4 py-2 rounded-lg text-sm font-medium transition-all" data-duration="25">
+                Focus
+              </button>
+              <button class="session-tab px-4 py-2 rounded-lg text-sm font-medium transition-all" data-duration="15">
+                Short Break
+              </button>
+              <button class="session-tab px-4 py-2 rounded-lg text-sm font-medium transition-all" data-duration="30">
+                Long Break
+              </button>
+            </div>
+
+            <!-- Timer Display -->
+            <div class="flex flex-col items-center">
+              <div class="relative glow rounded-full">
+                <svg class="timer-ring w-64 h-64 md:w-80 md:h-80" viewBox="0 0 200 200">
+                  <circle cx="100" cy="100" r="90" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="8"/>
+                  <circle id="timerProgress" cx="100" cy="100" r="90" fill="none" stroke="url(#gradient)" stroke-width="8" stroke-linecap="round" stroke-dasharray="565.48" stroke-dashoffset="0"/>
+                  <defs>
+                    <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stop-color="#38bdf8"/>
+                      <stop offset="100%" stop-color="#8b5cf6"/>
+                    </linearGradient>
+                  </defs>
+                </svg>
+                <div class="absolute inset-0 flex flex-col items-center justify-center">
+                  <span id="timerDisplay" class="text-6xl md:text-7xl font-light font-mono text-white tracking-tight">25:00</span>
+                  <span id="sessionLabel" class="text-slate-400 text-sm mt-2">Focus Session</span>
+                </div>
+              </div>
+
+              <!-- Timer Controls -->
+              <div class="flex items-center gap-4 mt-8">
+                <button id="resetBtn" class="p-3 rounded-full bg-slate-700/50 hover:bg-slate-600/50 transition-colors">
+                  <svg class="w-6 h-6 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                  </svg>
+                </button>
+                <button id="startBtn" class="px-8 py-4 rounded-full bg-gradient-to-r from-flow-500 to-purple-500 hover:from-flow-400 hover:to-purple-400 text-white font-semibold text-lg transition-all transform hover:scale-105 shadow-lg shadow-flow-500/30">
+                  Start Focus
+                </button>
+                <button id="skipBtn" class="p-3 rounded-full bg-slate-700/50 hover:bg-slate-600/50 transition-colors">
+                  <svg class="w-6 h-6 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- Current Task -->
+            <div class="mt-8 max-w-md mx-auto">
+              <div class="flex items-center gap-3 p-3 rounded-xl bg-slate-800/50 border border-slate-700/50">
+                <svg class="w-5 h-5 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                </svg>
+                <input type="text" id="currentTask" placeholder="What are you working on?" class="flex-1 bg-transparent border-none outline-none text-slate-200 placeholder-slate-500 text-sm">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Stats Sidebar -->
+        <div class="space-y-6">
+          <!-- Today's Stats -->
+          <div class="card-glass rounded-2xl p-5">
+            <h3 class="text-sm font-medium text-slate-400 mb-4 flex items-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+              </svg>
+              Today's Progress
+            </h3>
+            <div class="grid grid-cols-2 gap-4">
+              <div class="text-center p-3 rounded-xl bg-slate-800/50">
+                <div class="text-3xl font-bold text-white" id="todaySessions">0</div>
+                <div class="text-xs text-slate-400 mt-1">Sessions</div>
+              </div>
+              <div class="text-center p-3 rounded-xl bg-slate-800/50">
+                <div class="text-3xl font-bold text-white" id="todayMinutes">0</div>
+                <div class="text-xs text-slate-400 mt-1">Minutes</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Weekly Chart -->
+          <div class="card-glass rounded-2xl p-5">
+            <h3 class="text-sm font-medium text-slate-400 mb-4 flex items-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+              </svg>
+              This Week
+            </h3>
+            <canvas id="weeklyChart" height="160"></canvas>
+          </div>
+
+          <!-- Quick Stats -->
+          <div class="card-glass rounded-2xl p-5">
+            <h3 class="text-sm font-medium text-slate-400 mb-4 flex items-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+              </svg>
+              All Time Stats
+            </h3>
+            <div class="space-y-3">
+              <div class="flex items-center justify-between">
+                <span class="text-slate-400 text-sm">Total Sessions</span>
+                <span class="text-white font-semibold" id="totalSessions">142</span>
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="text-slate-400 text-sm">Focus Hours</span>
+                <span class="text-white font-semibold" id="totalHours">59</span>
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="text-slate-400 text-sm">Best Streak</span>
+                <span class="text-white font-semibold" id="bestStreak">12 days</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Motivational Quote -->
+          <div class="card-glass rounded-2xl p-5 border-l-4 border-flow-500">
+            <p class="text-slate-300 text-sm italic" id="quote">"The key is not to prioritize what's on your schedule, but to schedule your priorities."</p>
+            <p class="text-slate-500 text-xs mt-2" id="quoteAuthor">— Stephen Covey</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent Sessions -->
+      <div class="mt-6 card-glass rounded-2xl p-5">
+        <h3 class="text-sm font-medium text-slate-400 mb-4 flex items-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          Recent Sessions
+        </h3>
+        <div class="overflow-x-auto">
+          <table class="w-full">
+            <thead>
+              <tr class="text-xs text-slate-500 border-b border-slate-700/50">
+                <th class="text-left pb-3 font-medium">Task</th>
+                <th class="text-left pb-3 font-medium">Duration</th>
+                <th class="text-left pb-3 font-medium">Time</th>
+                <th class="text-left pb-3 font-medium">Status</th>
+              </tr>
+            </thead>
+            <tbody id="sessionHistory" class="text-sm">
+              <!-- Dynamic content -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="max-w-6xl mx-auto mt-12 text-center text-slate-500 text-sm">
+      <p>Built with focus • <a href="https://github.com/ai-develops/flowstate" class="text-flow-400 hover:underline">View on GitHub</a></p>
+    </footer>
+  </div>
+
+  <script>
+    // ========== State ==========
+    let timerDuration = 25 * 60;
+    let timeRemaining = timerDuration;
+    let isRunning = false;
+    let timerInterval = null;
+    let sessionsToday = 0;
+    let minutesToday = 0;
+
+    // Sample data
+    const weeklyData = [4, 6, 3, 8, 5, 7, 2];
+    const sessionLog = [
+      { task: "Deep work on project", duration: 25, time: "2 hours ago", completed: true },
+      { task: "Email & communication", duration: 15, time: "4 hours ago", completed: true },
+      { task: "Code review", duration: 25, time: "Yesterday", completed: true },
+      { task: "Documentation", duration: 15, time: "Yesterday", completed: false },
+    ];
+
+    const quotes = [
+      { text: "The key is not to prioritize what's on your schedule, but to schedule your priorities.", author: "Stephen Covey" },
+      { text: "Focus is a matter of deciding what things you're not going to do.", author: "John Carmack" },
+      { text: "The successful warrior is the average man, with laser-like focus.", author: "Bruce Lee" },
+      { text: "Concentrate all your thoughts upon the work in hand. The sun's rays do not burn until brought to a focus.", author: "Alexander Graham Bell" },
+    ];
+
+    // ========== DOM Elements ==========
+    const timerDisplay = document.getElementById('timerDisplay');
+    const timerProgress = document.getElementById('timerProgress');
+    const startBtn = document.getElementById('startBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const skipBtn = document.getElementById('skipBtn');
+    const sessionLabel = document.getElementById('sessionLabel');
+    const sessionTabs = document.querySelectorAll('.session-tab');
+    const weeklyChart = document.getElementById('weeklyChart');
+    const sessionHistory = document.getElementById('sessionHistory');
+
+    // ========== Timer Functions ==========
+    function formatTime(seconds) {
+      const mins = Math.floor(seconds / 60);
+      const secs = seconds % 60;
+      return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+
+    function updateDisplay() {
+      timerDisplay.textContent = formatTime(timeRemaining);
+      const circumference = 2 * Math.PI * 90;
+      const progress = (timerDuration - timeRemaining) / timerDuration;
+      timerProgress.style.strokeDashoffset = circumference * (1 - progress);
+    }
+
+    function startTimer() {
+      if (isRunning) {
+        pauseTimer();
+        return;
+      }
+      
+      isRunning = true;
+      startBtn.textContent = 'Pause';
+      startBtn.classList.remove('from-flow-500', 'to-purple-500');
+      startBtn.classList.add('from-amber-500', 'to-orange-500');
+      
+      timerInterval = setInterval(() => {
+        if (timeRemaining > 0) {
+          timeRemaining--;
+          updateDisplay();
+        } else {
+          completeSession();
+        }
+      }, 1000);
+    }
+
+    function pauseTimer() {
+      isRunning = false;
+      clearInterval(timerInterval);
+      startBtn.textContent = 'Resume';
+      startBtn.classList.remove('from-amber-500', 'to-orange-500');
+      startBtn.classList.add('from-flow-500', 'to-purple-500');
+    }
+
+    function resetTimer() {
+      isRunning = false;
+      clearInterval(timerInterval);
+      timeRemaining = timerDuration;
+      startBtn.textContent = 'Start Focus';
+      startBtn.classList.remove('from-amber-500', 'to-orange-500');
+      startBtn.classList.add('from-flow-500', 'to-purple-500');
+      updateDisplay();
+    }
+
+    function completeSession() {
+      isRunning = false;
+      clearInterval(timerInterval);
+      
+      sessionsToday++;
+      minutesToday += timerDuration / 60;
+      
+      document.getElementById('todaySessions').textContent = sessionsToday;
+      document.getElementById('todayMinutes').textContent = minutesToday;
+      
+      const task = document.getElementById('currentTask').value || 'Focus session';
+      sessionLog.unshift({
+        task: task,
+        duration: timerDuration / 60,
+        time: 'Just now',
+        completed: true
+      });
+      renderSessionHistory();
+      
+      // Notification
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification('FlowState', { body: 'Session complete! Take a break.' });
+      }
+      
+      resetTimer();
+    }
+
+    function setSessionType(duration, label) {
+      timerDuration = duration * 60;
+      timeRemaining = timerDuration;
+      sessionLabel.textContent = label;
+      resetTimer();
+    }
+
+    // ========== UI Functions ==========
+    function renderSessionHistory() {
+      sessionHistory.innerHTML = sessionLog.slice(0, 5).map(session => `
+        <tr class="border-b border-slate-700/30 last:border-0">
+          <td class="py-3 text-slate-200">${session.task}</td>
+          <td class="py-3 text-slate-400">${session.duration} min</td>
+          <td class="py-3 text-slate-400">${session.time}</td>
+          <td class="py-3">
+            <span class="px-2 py-1 rounded-full text-xs ${session.completed ? 'bg-green-500/20 text-green-400' : 'bg-amber-500/20 text-amber-400'}">
+              ${session.completed ? 'Completed' : 'Partial'}
+            </span>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function initChart() {
+      const ctx = weeklyChart.getContext('2d');
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+          datasets: [{
+            label: 'Sessions',
+            data: weeklyData,
+            backgroundColor: 'rgba(56, 189, 248, 0.6)',
+            borderColor: 'rgba(56, 189, 248, 1)',
+            borderWidth: 1,
+            borderRadius: 6,
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { display: false }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              grid: { color: 'rgba(255,255,255,0.05)' },
+              ticks: { color: 'rgba(255,255,255,0.5)' }
+            },
+            x: {
+              grid: { display: false },
+              ticks: { color: 'rgba(255,255,255,0.5)' }
+            }
+          }
+        }
+      });
+    }
+
+    function setRandomQuote() {
+      const quote = quotes[Math.floor(Math.random() * quotes.length)];
+      document.getElementById('quote').textContent = `"${quote.text}"`;
+      document.getElementById('quoteAuthor').textContent = `— ${quote.author}`;
+    }
+
+    // ========== Event Listeners ==========
+    startBtn.addEventListener('click', startTimer);
+    resetBtn.addEventListener('click', resetTimer);
+    skipBtn.addEventListener('click', () => {
+      if (confirm('Skip this session?')) {
+        resetTimer();
+      }
+    });
+
+    sessionTabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        sessionTabs.forEach(t => {
+          t.classList.remove('active', 'bg-flow-500/30', 'text-flow-300');
+          t.classList.add('text-slate-400', 'hover:bg-slate-700/50');
+        });
+        tab.classList.add('active', 'bg-flow-500/30', 'text-flow-300');
+        tab.classList.remove('text-slate-400', 'hover:bg-slate-700/50');
+        
+        const duration = parseInt(tab.dataset.duration);
+        const labels = { 25: 'Focus Session', 15: 'Short Break', 30: 'Long Break' };
+        setSessionType(duration, labels[duration]);
+      });
+    });
+
+    // Initialize active tab styling
+    document.querySelector('.session-tab.active').classList.add('bg-flow-500/30', 'text-flow-300');
+    document.querySelector('.session-tab.active').classList.remove('text-slate-400');
+
+    // Request notification permission
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+
+    // ========== Initialize ==========
+    updateDisplay();
+    renderSessionHistory();
+    initChart();
+    setRandomQuote();
+  </script>
+</body>
+</html>
